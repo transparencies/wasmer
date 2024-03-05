@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MaybeCheckpointResult","WasiProcessCheckpoint"],"struct":["WasiProcess","WasiProcessId","WasiProcessInner","WasiProcessWait"],"type":["LockableWasiProcessInner"]};
