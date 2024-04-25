@@ -13,7 +13,7 @@ mod container;
 mod create_exe;
 #[cfg(feature = "static-artifact-create")]
 mod create_obj;
-pub(crate) mod deploy;
+pub(crate) mod domain;
 #[cfg(feature = "static-artifact-create")]
 mod gen_c_header;
 mod init;
@@ -130,10 +130,10 @@ impl WasmerCmd {
             Some(Cmd::Inspect(inspect)) => inspect.execute(),
             Some(Cmd::Init(init)) => init.execute(),
             Some(Cmd::Login(login)) => login.execute(),
-            Some(Cmd::Publish(publish)) => publish.execute(),
+            Some(Cmd::Publish(publish)) => publish.run().map(|_| ()),
             Some(Cmd::Package(cmd)) => match cmd {
                 Package::Download(cmd) => cmd.execute(),
-                Package::Build(cmd) => cmd.execute(),
+                Package::Build(cmd) => cmd.execute().map(|_| ()),
             },
             Some(Cmd::Container(cmd)) => match cmd {
                 crate::commands::Container::Unpack(cmd) => cmd.execute(),
@@ -157,6 +157,7 @@ impl WasmerCmd {
             Some(Cmd::Journal(journal)) => journal.run(),
             Some(Cmd::Ssh(ssh)) => ssh.run(),
             Some(Cmd::Namespace(namespace)) => namespace.run(),
+            Some(Cmd::Domain(namespace)) => namespace.run(),
             None => {
                 WasmerCmd::command().print_long_help()?;
                 // Note: clap uses an exit code of 2 when CLI parsing fails
@@ -343,8 +344,8 @@ enum Cmd {
     Container(crate::commands::Container),
 
     // Edge commands
-    /// Deploy apps to Wasmer Edge.
-    Deploy(crate::commands::deploy::CmdDeploy),
+    /// Deploy apps to Wasmer Edge. [alias: app deploy]
+    Deploy(crate::commands::app::deploy::CmdAppDeploy),
 
     /// Manage deployed Edge apps.
     #[clap(subcommand, alias = "apps")]
@@ -356,6 +357,10 @@ enum Cmd {
     /// Manage Wasmer namespaces.
     #[clap(subcommand, alias = "namespaces")]
     Namespace(crate::commands::namespace::CmdNamespace),
+
+    /// Manage DNS records
+    #[clap(subcommand, alias = "domains")]
+    Domain(crate::commands::domain::CmdDomain),
 }
 
 fn is_binfmt_interpreter() -> bool {

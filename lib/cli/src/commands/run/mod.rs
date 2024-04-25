@@ -27,6 +27,7 @@ use wasmer::{
 };
 #[cfg(feature = "compiler")]
 use wasmer_compiler::ArtifactBuild;
+use wasmer_config::package::PackageSource as PackageSpecifier;
 use wasmer_registry::{wasmer_env::WasmerEnv, Package};
 #[cfg(feature = "journal")]
 use wasmer_wasix::journal::{LogFileJournal, SnapshotTrigger};
@@ -35,6 +36,7 @@ use wasmer_wasix::{
     journal::CompactingLogFileJournal,
     runners::{
         dcgi::{DcgiInstanceFactory, DcgiRunner},
+        dproxy::DProxyRunner,
         emscripten::EmscriptenRunner,
         wasi::WasiRunner,
         wcgi::{self, AbortHandle, NoOpWcgiCallbacks, WcgiRunner},
@@ -43,7 +45,7 @@ use wasmer_wasix::{
     runtime::{
         module_cache::{CacheError, ModuleHash},
         package_loader::PackageLoader,
-        resolver::{PackageSpecifier, QueryError},
+        resolver::QueryError,
         task_manager::VirtualTaskManagerExt,
     },
     Runtime, WasiError,
@@ -185,6 +187,8 @@ impl Run {
 
         if DcgiRunner::can_run_command(cmd.metadata())? {
             self.run_dcgi(id, pkg, uses, runtime)
+        } else if DProxyRunner::can_run_command(cmd.metadata())? {
+            self.run_dproxy(id, pkg, runtime)
         } else if WcgiRunner::can_run_command(cmd.metadata())? {
             self.run_wcgi(id, pkg, uses, runtime)
         } else if WasiRunner::can_run_command(cmd.metadata())? {
@@ -207,7 +211,7 @@ impl Run {
         let mut dependencies = Vec::new();
 
         for name in &self.wasi.uses {
-            let specifier = PackageSpecifier::parse(name)
+            let specifier = PackageSpecifier::from_str(name)
                 .with_context(|| format!("Unable to parse \"{name}\" as a package specifier"))?;
             let pkg = {
                 let specifier = specifier.clone();
@@ -299,6 +303,17 @@ impl Run {
         let factory = DcgiInstanceFactory::new();
         let mut runner = wasmer_wasix::runners::dcgi::DcgiRunner::new(factory);
         self.config_wcgi(runner.config().inner(), uses);
+        runner.run_command(command_name, pkg, runtime)
+    }
+
+    fn run_dproxy(
+        &self,
+        command_name: &str,
+        pkg: &BinaryPackage,
+        runtime: Arc<dyn Runtime + Send + Sync>,
+    ) -> Result<(), Error> {
+        let mut inner = self.build_wasi_runner(&runtime)?;
+        let mut runner = wasmer_wasix::runners::dproxy::DProxyRunner::new(inner, pkg);
         runner.run_command(command_name, pkg, runtime)
     }
 
@@ -546,7 +561,7 @@ impl PackageSource {
             return Ok(PackageSource::Dir(path.to_path_buf()));
         }
 
-        if let Ok(pkg) = PackageSpecifier::parse(s) {
+        if let Ok(pkg) = PackageSpecifier::from_str(s) {
             return Ok(PackageSource::Package(pkg));
         }
 

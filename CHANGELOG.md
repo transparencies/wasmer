@@ -9,6 +9,92 @@ Looking for changes that affect our C API? See the [C API Changelog](lib/c-api/C
 
 ## **Unreleased**
 
+## 4.3.0-alpha.1 - 25/04/2024
+
+This release introduces support for publishing unnamed packages. It also fixes an issue with code generation when using Singlepass and contains fixes to WASIX.
+
+## Added
+
+  - [#4532](https://github.com/wasmerio/wasmer/pull/4532) Unnamed packages
+  - [#4548](https://github.com/wasmerio/wasmer/pull/4548) Added a fix so that closed sockets do not cause errors
+  - [#4560](https://github.com/wasmerio/wasmer/pull/4560) chore(backend-api): Add hostname to AppAlias type
+  - [#4543](https://github.com/wasmerio/wasmer/pull/4543) build: Add Wasmer CLI package definition to Nix flake
+
+## Changed
+
+  - [#4582](https://github.com/wasmerio/wasmer/pull/4582) feat: wasmer-config
+  - [#4359](https://github.com/wasmerio/wasmer/pull/4359) Use nanoseconds in `filestat` for directories
+  - [#4557](https://github.com/wasmerio/wasmer/pull/4557) Safely handle offset in fd_seek
+  - [#4555](https://github.com/wasmerio/wasmer/pull/4555) Fd validity and basic bound checks on `fd_advise`
+  - [#4538](https://github.com/wasmerio/wasmer/pull/4538) deps: Switch from unmaintained term_size to terminal_size
+  - [#4563](https://github.com/wasmerio/wasmer/pull/4563) chore: Remove accidentally committed wasm file
+  - [#4561](https://github.com/wasmerio/wasmer/pull/4561) chore: Make wasmer_wasix::os::console submodule public (again)
+  - [#4562](https://github.com/wasmerio/wasmer/pull/4562) chore: remove repetitive words
+  - [#4552](https://github.com/wasmerio/wasmer/pull/4552) Module cache optimization round2
+  - [#4546](https://github.com/wasmerio/wasmer/pull/4546) Expose `store::StoreObjects`
+
+## Fixed
+
+  - [#4559](https://github.com/wasmerio/wasmer/pull/4559) Fix ImpossibleRelocation panics in singlepass/aarch64
+  - [#4514](https://github.com/wasmerio/wasmer/pull/4514) Fix for snapshots in certain use cases
+  - [#4590](https://github.com/wasmerio/wasmer/pull/4590) Fix fd_seek underflow
+
+
+
+## 4.2.8 - 05/04/2024
+
+This release improves journal support and improves the performance of the singlepass backend.
+Also contains fixes to the Edge CLI.
+
+## Added
+
+  - [#4510](https://github.com/wasmerio/wasmer/pull/4510) Added support for creating log file journals directly from buffers
+  - [#4506](https://github.com/wasmerio/wasmer/pull/4506) feat: add wasmer-argus
+  - [#4508](https://github.com/wasmerio/wasmer/pull/4508) Upgrade edge-{schema,util} crates + add some helper methdos
+
+## Changed
+
+  - [#4541](https://github.com/wasmerio/wasmer/pull/4541) Removed some dead code
+  - [#4539](https://github.com/wasmerio/wasmer/pull/4539) deps: Upgrade h2 due to RUSTSEC advisory
+  - [#4527](https://github.com/wasmerio/wasmer/pull/4527) allow owner field in app.yaml
+  - [#4526](https://github.com/wasmerio/wasmer/pull/4526) feat(singlepass): use SIMD insts for popcount
+  - [#4507](https://github.com/wasmerio/wasmer/pull/4507) deps: Upgrade edge-schema to 0.0.3
+  - [#4462](https://github.com/wasmerio/wasmer/pull/4462) DProxy
+
+## Fixed
+
+  - [#4542](https://github.com/wasmerio/wasmer/pull/4542) Various fixes detected in the build
+  - [#4537](https://github.com/wasmerio/wasmer/pull/4537) Fix owner issues with app create
+  - [#4535](https://github.com/wasmerio/wasmer/pull/4535) fix(cli): Fix Edge WinterJS template
+  - [#4525](https://github.com/wasmerio/wasmer/pull/4525) Fix bug with `app deploy`: app URL is stale
+  - [#4520](https://github.com/wasmerio/wasmer/pull/4520) Fix singlepass panic
+
+
+
+## 4.2.7 - 19/03/2024
+
+This release adds the `wasmer domain` command for DNS records management, and also includes an important fix to the `stack_restore` WASIX syscall (used by the `longjmp` function).
+
+## Added
+
+  - [#4478](https://github.com/wasmerio/wasmer/pull/4478) chore(backend-api): Add size to PackageDistribution
+
+## Changed
+
+  - [#4492](https://github.com/wasmerio/wasmer/pull/4492) No longer restoring the thread local memory when we longjmp
+  - [#4487](https://github.com/wasmerio/wasmer/pull/4487) Manage DNS records
+  - [#4220](https://github.com/wasmerio/wasmer/pull/4220) Ability to detect a tainted instance
+  - [#4455](https://github.com/wasmerio/wasmer/pull/4455) Implemented an exponential CPU backoff that kicks in when a run token is not held
+  - [#4470](https://github.com/wasmerio/wasmer/pull/4470) chore: Completely remove wasix_http_client
+
+## Fixed
+
+  - [#4490](https://github.com/wasmerio/wasmer/pull/4490) Fix for a panic in the sock_recv when a file handle is missing
+  - [#4335](https://github.com/wasmerio/wasmer/pull/4335) Fixed an issue where the package loader was blocking the tokio runtime
+  - [#4473](https://github.com/wasmerio/wasmer/pull/4473) fix: fix feature = "cargo-clippy" deprecation
+
+
+
 ## 4.2.6 - 03/03/2024
 
 This release includes a number of DX improvements for the Wasmer CLI, as well as fixes to WASI and its filesystem implementation.

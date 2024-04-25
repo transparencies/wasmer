@@ -344,7 +344,7 @@ pub trait VirtualFile:
     fn set_len(&mut self, new_size: u64) -> Result<()>;
 
     /// Request deletion of the file
-    fn unlink(&mut self) -> BoxFuture<'static, Result<()>>;
+    fn unlink(&mut self) -> Result<()>;
 
     /// Indicates if the file is opened or closed. This function must not block
     /// Defaults to a status of being constantly open
@@ -357,6 +357,12 @@ pub trait VirtualFile:
     /// on normal files
     fn get_special_fd(&self) -> Option<u32> {
         None
+    }
+
+    /// Writes to this file using an mmap offset and reference
+    /// (this method only works for mmap optimized file systems)
+    fn write_from_mmap(&mut self, _offset: u64, _len: u64) -> std::io::Result<()> {
+        Err(std::io::ErrorKind::Unsupported.into())
     }
 
     /// This method will copy a file from a source to this destination where

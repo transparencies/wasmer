@@ -18,7 +18,8 @@ use std::{
 use derivative::Derivative;
 use futures::future::BoxFuture;
 use virtual_net::{DynVirtualNetworking, VirtualNetworking};
-use wasmer::Module;
+use wasmer::{Module, RuntimeError};
+use wasmer_wasix_types::wasi::ExitCode;
 
 #[cfg(feature = "journal")]
 use crate::journal::DynJournal;
@@ -32,6 +33,13 @@ use crate::{
     },
     WasiTtyState,
 };
+
+#[derive(Clone)]
+pub enum TaintReason {
+    UnknownWasiVersion,
+    NonZeroExitCode(ExitCode),
+    RuntimeError(RuntimeError),
+}
 
 /// Runtime components used when running WebAssembly programs.
 ///
@@ -96,8 +104,9 @@ where
     fn load_module<'a>(&'a self, wasm: &'a [u8]) -> BoxFuture<'a, anyhow::Result<Module>> {
         let engine = self.engine();
         let module_cache = self.module_cache();
+        let hash = ModuleHash::hash(wasm);
 
-        let task = async move { load_module(&engine, &module_cache, wasm).await };
+        let task = async move { load_module(&engine, &module_cache, wasm, hash).await };
 
         Box::pin(task)
     }
@@ -108,6 +117,10 @@ where
     fn load_module_sync(&self, wasm: &[u8]) -> Result<Module, anyhow::Error> {
         InlineWaker::block_on(self.load_module(wasm))
     }
+
+    /// Callback thats invokes whenever the instance is tainted, tainting can occur
+    /// for multiple reasons however the most common is a panic within the process
+    fn on_taint(&self, _reason: TaintReason) {}
 
     /// The list of journals which will be used to restore the state of the
     /// runtime at a particular point in time
@@ -138,16 +151,16 @@ pub async fn load_module(
     engine: &wasmer::Engine,
     module_cache: &(dyn ModuleCache + Send + Sync),
     wasm: &[u8],
+    wasm_hash: ModuleHash,
 ) -> Result<Module, anyhow::Error> {
-    let hash = ModuleHash::hash(wasm);
-    let result = module_cache.load(hash, engine).await;
+    let result = module_cache.load(wasm_hash, engine).await;
 
     match result {
         Ok(module) => return Ok(module),
         Err(CacheError::NotFound) => {}
         Err(other) => {
             tracing::warn!(
-                %hash,
+                %wasm_hash,
                 error=&other as &dyn std::error::Error,
                 "Unable to load the cached module",
             );
@@ -156,9 +169,9 @@ pub async fn load_module(
 
     let module = Module::new(&engine, wasm)?;
 
-    if let Err(e) = module_cache.save(hash, engine, &module).await {
+    if let Err(e) = module_cache.save(wasm_hash, engine, &module).await {
         tracing::warn!(
-            %hash,
+            %wasm_hash,
             error=&e as &dyn std::error::Error,
             "Unable to cache the compiled module",
         );
@@ -537,7 +550,9 @@ impl Runtime for OverriddenRuntime {
         if self.engine.is_some() || self.module_cache.is_some() {
             let engine = self.engine();
             let module_cache = self.module_cache();
-            let task = async move { load_module(&engine, &module_cache, wasm).await };
+            let hash = ModuleHash::hash(wasm);
+
+            let task = async move { load_module(&engine, &module_cache, wasm, hash).await };
             Box::pin(task)
         } else {
             self.inner.load_module(wasm)

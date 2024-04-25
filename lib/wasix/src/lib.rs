@@ -99,11 +99,11 @@ pub use crate::{
         WasiEnv, WasiEnvBuilder, WasiEnvInit, WasiFunctionEnv, WasiInstanceHandles,
         WasiStateCreationError, ALL_RIGHTS,
     },
-    syscalls::{rewind, rewind_ext, types, unwind},
+    syscalls::{journal::wait_for_snapshot, rewind, rewind_ext, types, unwind},
     utils::is_wasix_module,
     utils::{
         get_wasi_version, get_wasi_versions, is_wasi_module,
-        store::{capture_instance_snapshot, restore_instance_snapshot, InstanceSnapshot},
+        store::{capture_store_snapshot, restore_store_snapshot, StoreSnapshot},
         WasiVersion,
     },
 };
@@ -769,6 +769,25 @@ pub(crate) fn block_in_place<Ret>(thunk: impl FnOnce() -> Ret) -> Ret {
             tokio::task::block_in_place(thunk)
         } else {
             thunk()
+        }
+    }
+}
+
+/// Spawns a new blocking task that runs the provided closure.
+///
+/// The closure is executed on a separate thread, allowing it to perform blocking operations
+/// without blocking the main thread. The closure is wrapped in a `Future` that resolves to the
+/// result of the closure's execution.
+pub(crate) async fn spawn_blocking<F, R>(f: F) -> Result<R, tokio::task::JoinError>
+where
+    F: FnOnce() -> R + Send + 'static,
+    R: Send + 'static,
+{
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            Ok(block_in_place(f))
+        } else {
+            tokio::task::spawn_blocking(f).await
         }
     }
 }

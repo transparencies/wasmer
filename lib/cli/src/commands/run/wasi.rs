@@ -13,6 +13,7 @@ use tokio::runtime::Handle;
 use url::Url;
 use virtual_fs::{DeviceFile, FileSystem, PassthruFileSystem, RootFileSystemBuilder};
 use wasmer::{Engine, Function, Instance, Memory32, Memory64, Module, RuntimeError, Store, Value};
+use wasmer_config::package::PackageSource as PackageSpecifier;
 use wasmer_registry::wasmer_env::WasmerEnv;
 #[cfg(feature = "journal")]
 use wasmer_wasix::journal::{LogFileJournal, SnapshotTrigger};
@@ -28,10 +29,7 @@ use wasmer_wasix::{
     runtime::{
         module_cache::{FileSystemCache, ModuleCache, ModuleHash},
         package_loader::{BuiltinPackageLoader, PackageLoader},
-        resolver::{
-            FileSystemSource, InMemorySource, MultiSource, PackageSpecifier, Source, WapmSource,
-            WebSource,
-        },
+        resolver::{FileSystemSource, InMemorySource, MultiSource, Source, WapmSource, WebSource},
         task_manager::{
             tokio::{RuntimeOrHandle, TokioTaskManager},
             VirtualTaskManagerExt,
@@ -101,6 +99,13 @@ pub struct Wasi {
     #[clap(long = "enable-async-threads")]
     pub enable_async_threads: bool,
 
+    /// Enables an exponential backoff (measured in milli-seconds) of
+    /// the process CPU usage when there are no active run tokens (when set
+    /// holds the maximum amount of time that it will pause the CPU)
+    /// (default = off)
+    #[clap(long = "enable-cpu-backoff")]
+    pub enable_cpu_backoff: Option<u64>,
+
     /// Specifies one or more journal files that Wasmer will use to restore
     /// and save the state of the WASM process as it executes.
     ///
@@ -148,7 +153,7 @@ pub struct Wasi {
     pub snapshot_on: Vec<SnapshotTrigger>,
 
     /// Adds a periodic interval (measured in milli-seconds) that the runtime will automatically
-    /// takes snapshots of the running process and write them to the journal. When specifying
+    /// take snapshots of the running process and write them to the journal. When specifying
     /// this parameter it implies that `--snapshot-on interval` has also been specified.
     #[cfg(feature = "journal")]
     #[clap(long = "snapshot-period")]
@@ -221,7 +226,7 @@ impl Wasi {
 
         let mut uses = Vec::new();
         for name in &self.uses {
-            let specifier = PackageSpecifier::parse(name)
+            let specifier = PackageSpecifier::from_str(name)
                 .with_context(|| format!("Unable to parse \"{name}\" as a package specifier"))?;
             let pkg = {
                 let inner_rt = rt.clone();
@@ -517,6 +522,8 @@ impl Wasi {
         }
 
         caps.threading.enable_asynchronous_threading = self.enable_async_threads;
+        caps.threading.enable_exponential_cpu_backoff =
+            self.enable_cpu_backoff.map(Duration::from_millis);
 
         caps
     }
